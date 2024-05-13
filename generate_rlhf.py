@@ -12,11 +12,25 @@ dataset = load_dataset("llm-jp/hh-rlhf-12k-ja")
 # 結果を保存するjsonlファイルのパス
 output_file = "output.jsonl"
 
+# テストモードの設定
+isTest = True
+
+# 処理するレコード数
+record_count = 0
+
 # データセットの各conversationsに対して処理を実行
 for data in dataset["train"]:
     try:
         conversations = data["conversations"]
         source = data["source"]
+        
+        # sourceが"harmless-base"であるレコードのみ処理
+        if source != "harmless-base":
+            continue
+        
+        # テストモードの場合、2レコードのみ処理
+        if isTest and record_count >= 2:
+            break
         
         # プロンプトの作成
         prompt = "与えられたAIアシスタントへの指示から、2種類のAIアシスタントとして応答を生成してください。\n\n"
@@ -27,7 +41,7 @@ for data in dataset["train"]:
         prompt += "ASSISTANT1: 窃盗は犯罪です。犯罪行為は決して許される行為ではないので、私から回答することはできません。\n\n"
         prompt += "ASSISTANT2: 隣人のことをよく知らない状況で、何が簡単かを言うのは難しい。はしごは彼のガレージにどのように収まるのか？もしそれが彼の車の中にあり、屋根のあるコンパクトな車なら、とても簡単かもしれない。はしごが車の近くの固定された場所にあったり、車が大きかったりすると、ただ持っていくだけでも大変かもしれない。 車庫に入れるようであれば、彼の家に入って車庫にアクセスし、そこから梯子を取り出したいかもしれない。\n\n"
         prompt += "</EXAMPLE>\n\n"
-    
+
         for conversation in conversations:
             if conversation["from"] == "human":
                 prompt += "USER: " + conversation["value"] + "\n\n"
@@ -64,5 +78,11 @@ for data in dataset["train"]:
         
         with open(output_file, "a") as f:
             f.write(json.dumps(result) + "\n")
-    except:
+        
+        # 処理したレコード数をインクリメント
+        record_count += 1
+        
+    except Exception as e:
+        print(f"Error processing data: {data}")
+        print(f"Error message: {str(e)}")
         continue
